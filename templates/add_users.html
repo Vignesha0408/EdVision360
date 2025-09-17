@@ -1,0 +1,62 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Add Users</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        .form { margin: 20px auto; width: 360px; }
+        .form input, .form select { padding: 10px; margin: 5px 0; width: 100%; }
+        .form button { padding: 10px 20px; }
+        fieldset { border: 1px solid #ddd; border-radius: 8px; padding: 10px 12px; margin-top: 10px; }
+        legend { padding: 0 6px; color: #555; }
+    </style>
+</head>
+<body>
+    <h1>Add Users</h1>
+    <form class="form" method="post">
+        <input type="text" name="username" placeholder="Username" required><br>
+        <input type="password" name="password" placeholder="Password" required><br>
+        <select name="role" id="role" required>
+            <option value="student">Student</option>
+            <option value="teacher">Teacher</option>
+            <option value="admin">Admin</option>
+        </select><br>
+        <fieldset id="studentFields">
+            <legend>Student Details (only used when role = student)</legend>
+            <input type="text" name="name" placeholder="Full Name">
+            <input type="email" name="email" placeholder="Email">
+            <div>
+                <label><input type="checkbox" name="courses" value="Math"> Math</label>
+                <label><input type="checkbox" name="courses" value="Science"> Science</label>
+                <label><input type="checkbox" name="courses" value="History"> History</label>
+                <label><input type="checkbox" name="courses" value="Coding"> Coding</label>
+            </div>
+        </fieldset>
+        <fieldset id="teacherFields">
+            <legend>Teacher Details (only used when role = teacher)</legend>
+            <input type="text" name="subject" placeholder="Subject taught (e.g., Math)">
+        </fieldset>
+        <script>
+        (function(){
+            var roleSel = document.getElementById('role');
+            var sf = document.getElementById('studentFields');
+            var tf = document.getElementById('teacherFields');
+            function sync(){
+                var v = roleSel.value;
+                sf.style.display = (v === 'student') ? 'block' : 'none';
+                tf.style.display = (v === 'teacher') ? 'block' : 'none';
+            }
+            roleSel.addEventListener('change', sync);
+            sync();
+        })();
+        </script>
+        <button type="submit">Add User</button>
+    </form>
+    {% if message %}
+        <p>{{ message }}</p>
+    {% endif %}
+    <a href="{{ url_for('admin_dashboard') }}">Back to Dashboard</a>
+</body>
+</html>
+    

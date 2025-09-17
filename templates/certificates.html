@@ -1,0 +1,18 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Certificates</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+    </style>
+</head>
+<body>
+    <h1>Your Certificates</h1>
+    {% for cert in certificates %}
+        <p>{{ cert }}</p>
+    {% endfor %}
+    <a href="{{ url_for('student_dashboard') }}">Back to Dashboard</a>
+</body>
+</html>
+    

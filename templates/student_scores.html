@@ -1,0 +1,18 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Scores</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+    </style>
+</head>
+<body>
+    <h1>Your Scores</h1>
+    {% for course, score in scores.items() %}
+        <p>{{ course }}: {{ score }}</p>
+    {% endfor %}
+    <a href="{{ url_for('student_dashboard') }}">Back to Dashboard</a>
+</body>
+</html>
+    

@@ -1,0 +1,30 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Admin - Teachers</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        .card { background: #fff; border: 1px solid #eee; border-radius: 8px; padding: 16px; max-width: 600px; }
+        .title { margin-top: 0; }
+        ul { line-height: 1.8; }
+        a { text-decoration: none; color: #5e35b1; }
+    </style>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+    <div class="card">
+        <h1 class="title"><i class="fas fa-chalkboard-teacher"></i> Teachers ({{ teachers|length }})</h1>
+        {% if teachers %}
+        <ul>
+            {% for t in teachers %}<li>{{ t }}</li>{% endfor %}
+        </ul>
+        {% else %}
+        <p>No teachers found.</p>
+        {% endif %}
+        <p><a href="{{ url_for('admin_dashboard') }}">Back to Admin Dashboard</a></p>
+    </div>
+</body>
+</html>

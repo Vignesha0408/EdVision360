@@ -1,0 +1,59 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Profile</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        .card { background: #fff; border: 1px solid #eee; border-radius: 8px; padding: 16px; max-width: 520px; }
+        .row { display: flex; gap: 12px; }
+        .label { width: 120px; color: #555; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h1>Profile</h1>
+        <div class="row"><div class="label">Username</div><div>{{ username }}</div></div>
+        <div class="row"><div class="label">Role</div><div>{{ role }}</div></div>
+        {% if role == 'student' %}
+            {% set info = students_info.get(username) %}
+            {% if info %}
+                <div class="row"><div class="label">Name</div><div>{{ info.name }}</div></div>
+                <div class="row"><div class="label">Email</div><div>{{ info.email }}</div></div>
+                <div style="margin-top:10px;">
+                    <strong>Enrolled Courses</strong>
+                    {% if info.courses %}
+                        <ul>
+                        {% for c in info.courses %}<li>{{ c }}</li>{% endfor %}
+                        </ul>
+                    {% else %}
+                        <p>None</p>
+                    {% endif %}
+                </div>
+                <div style="margin-top:10px;">
+                    <strong>Marks</strong>
+                    {% if info.marks %}
+                        <ul>
+                        {% for c, m in info.marks.items() %}<li>{{ c }}: {{ m }}</li>{% endfor %}
+                        </ul>
+                    {% else %}
+                        <p>No marks yet.</p>
+                    {% endif %}
+                </div>
+            {% endif %}
+        {% endif %}
+    </div>
+    <p>
+        {% if role == 'student' %}
+            <a href="{{ url_for('student_dashboard') }}">Back to Dashboard</a>
+        {% elif role == 'teacher' %}
+            <a href="{{ url_for('teacher_dashboard') }}">Back to Dashboard</a>
+        {% elif role == 'admin' %}
+            <a href="{{ url_for('admin_dashboard') }}">Back to Dashboard</a>
+        {% else %}
+            <a href="{{ url_for('index') }}">Home</a>
+        {% endif %}
+    </p>
+</body>
+</html>
+    

@@ -1,0 +1,18 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Discussions</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+    </style>
+</head>
+<body>
+    <h1>Discussions</h1>
+    {% for discussion in discussions %}
+        <p>{{ discussion }}</p>
+    {% endfor %}
+    <a href="{{ url_for('student_dashboard') }}">Back to Dashboard</a>
+</body>
+</html>
+    
