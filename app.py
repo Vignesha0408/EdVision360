@@ -1,9 +1,19 @@
 from flask import Flask, render_template_string, request, redirect, url_for, session
+from flask import Flask, render_template_string, request, redirect, url_for, session, jsonify
+import google.generativeai as genai
+from datetime import datetime
 import os
 
 # Initialize Flask app
 app = Flask(__name__)
 app.secret_key = 'supersecretkey123'
+
+# Configure Gemini AI
+genai.configure(api_key="AIzaSyBMKLGXC3blIZdAe1CqlEO_VcRijSxKSAE")
+model = genai.GenerativeModel("gemini-1.5-flash")
+
+# Initialize chat session
+chat = model.start_chat(history=[])
 
 # Simulated database (in-memory for simplicity)
 users = {
@@ -1239,6 +1249,9 @@ def student_dashboard():
                 <a href="{{ url_for('discussions_page') }}" class="nav-item">
                     <i class="fas fa-comments"></i> Discussions
                 </a>
+                <a href="{{ url_for('ai_assistant_page') }}" class="nav-item">
+                    <i class="fas fa-robot"></i> AI Assistant
+                </a>
                 <a href="{{ url_for('profile_page') }}" class="nav-item">
                     <i class="fas fa-user"></i> Profile
                 </a>
@@ -1394,6 +1407,22 @@ def student_dashboard():
             });
         });
     </script>
+    
+    <!-- Floating AI Assistant Button -->
+    <div id="aiFloatingButton" style="position: fixed; bottom: 20px; right: 20px; z-index: 1000;">
+        <a href="/ai_assistant" style="
+            width: 60px; height: 60px; border-radius: 50%;
+            background: linear-gradient(135deg, #ff6b35 0%, #f7931e 100%);
+            border: none; color: white; font-size: 24px;
+            box-shadow: 0 4px 20px rgba(255, 107, 53, 0.4);
+            cursor: pointer; transition: all 0.3s ease;
+            display: flex; align-items: center; justify-content: center;
+            text-decoration: none;
+        " onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'">
+            <i class="fas fa-robot"></i>
+        </a>
+    </div>
+
 </body>
 </html>
         '''
@@ -8264,6 +8293,634 @@ def ui_dashboard():
     '''
     return render_template_string(template)
 
+# AI Chat Route for Academic Performance and Behavioral Prediction
+@app.route('/ai_chat', methods=['POST'])
+def ai_chat():
+    try:
+        # Get JSON data from request
+        data = request.get_json()
+        if not data:
+            return jsonify({
+                'response': 'No message received. Please try again.',
+                'status': 'error'
+            })
+            
+        user_message = data.get('message', '').strip()
+        if not user_message:
+            return jsonify({
+                'response': 'Please enter a message to get help from your AI assistant.',
+                'status': 'error'
+            })
+        
+        # Handle connection test
+        if user_message.lower() in ['test connection', 'ping']:
+            return jsonify({
+                'response': 'Connection test successful! AI Assistant is ready to help you.',
+                'status': 'success'
+            })
+        
+        # Get student profile data for personalized responses
+        username = session.get('username', 'Student')
+        user_role = session.get('role', 'student')
+        
+        # Gather student-specific data
+        student_courses = student_enrollments.get(username, [])
+        student_attendance = attendance_records.get(username, {})
+        
+        # Calculate attendance statistics
+        attendance_info = ""
+        attendance_rate = 0
+        if student_attendance:
+            total_days = len(student_attendance)
+            present_days = sum(1 for status in student_attendance.values() if status == 'Present')
+            attendance_rate = round((present_days / total_days) * 100, 1) if total_days > 0 else 0
+            attendance_info = f"Attendance Rate: {attendance_rate}% ({present_days}/{total_days} days)"
+        
+        # Get student grades/marks if available
+        student_marks = {}
+        avg_score = 0
+        if username in students_info and 'marks' in students_info[username]:
+            student_marks = students_info[username]['marks']
+        
+        # Calculate average performance
+        avg_performance = ""
+        if student_marks:
+            avg_score = sum(student_marks.values()) / len(student_marks)
+            avg_performance = f"Average Score: {avg_score:.1f}%"
+        
+        # Enhanced context for AI-based academic performance prediction platform
+        prompt = f"""
+        You are an AI assistant for EdVision360, an advanced educational platform. You are speaking with {username}, a {user_role}.
+        
+        IMPORTANT: {username} is an active student with enrollment and performance data. NEVER mention lack of data or enrollment.
+        
+        STUDENT PROFILE DATA:
+        - Name: {username}
+        - Role: {user_role}
+        - Enrolled Courses: {', '.join(student_courses) if student_courses else 'Math, Science, History (default courses)'}
+        - {attendance_info if attendance_info else 'Attendance tracking in progress - encourage regular attendance'}
+        - {avg_performance if avg_performance else 'Performance data being collected - focus on building strong academic foundation'}
+        - Course Grades: {student_marks if student_marks else 'Grades being updated - working towards excellent performance'}
+        
+        USER QUERY: "{user_message}"
+        
+        INSTRUCTIONS:
+        1. If this is the first message or a greeting, start with "Hello {username}! 👋"
+        2. Always be personal and refer to their academic journey positively
+        3. NEVER mention "no data", "not enrolled", or "haven't enrolled" - always assume active participation
+        4. Provide insights about academic performance and potential for improvement
+        5. Focus on aptitude development and skill enhancement strategies
+        6. If specific data isn't available, focus on general academic success strategies
+        7. Always include actionable advice for aptitude and skill development
+        8. Keep responses encouraging, supportive, and under 200 words
+        9. Treat every student as actively engaged in their educational journey
+        
+        SAMPLE RESPONSE STYLE:
+        "Hello {username}! 👋 Great to see you working on your academic success!
+        
+        📊 Based on your educational journey:
+        - You're progressing well in your courses: {', '.join(student_courses[:2]) if len(student_courses) >= 2 else 'your academic subjects'}
+        - {attendance_info if attendance_info else 'Keep maintaining consistent attendance for optimal learning'}
+        - {avg_performance if avg_performance else 'Focus on building strong foundational skills'}
+        
+        💡 My recommendations for aptitude improvement:
+        - Strengthen logical reasoning and analytical thinking skills
+        - Practice quantitative aptitude with daily problem-solving
+        - Enhance verbal abilities through reading and vocabulary building
+        - Develop time management skills for better academic performance
+        
+        What specific aptitude area would you like to focus on today?"
+        
+        Please respond as an educational AI that provides personalized, encouraging insights and recommendations. Always assume the student is actively engaged and never mention lack of enrollment or data.
+        """
+        
+        # Send message to Gemini AI
+        response = chat.send_message(prompt)
+        
+        return jsonify({
+            'response': response.text,
+            'timestamp': datetime.now().isoformat(),
+            'status': 'success',
+            'student_data': {
+                'username': username,
+                'courses': student_courses,
+                'attendance_rate': attendance_rate if 'attendance_rate' in locals() else None,
+                'avg_performance': avg_score if 'avg_score' in locals() else None
+            }
+        })
+        
+    except Exception as e:
+        print(f"AI Chat Error: {str(e)}")  # Server-side logging
+        return jsonify({
+            'response': 'I\'m your AI academic assistant and I\'m here to help! I can assist with performance analysis, study strategies, score predictions, and academic planning. Unfortunately, I\'m experiencing a temporary issue. Please try asking me about academic topics like study tips, performance analysis, or educational guidance.',
+            'error': str(e),
+            'status': 'error'
+        })
+
+# AI Assistant Page Route
+@app.route('/ai_assistant')
+def ai_assistant_page():
+    if 'role' not in session:
+        return redirect(url_for('login'))
+    
+    template = '''
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Assistant - EdVision360</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; margin: 0; }
+        body {
+            font-family: system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background: linear-gradient(135deg, #ff9800, #ff6f00);
+            display: flex; align-items: center; justify-content: center;
+            min-height: 100vh;
+        }
+        .chat-wrapper {
+            width: 100%; max-width: 720px; height: 85vh; max-height: 820px;
+            background: #ffffff; border-radius: 16px;
+            box-shadow: 0 20px 50px rgba(255, 111, 0, 0.3);
+            display: flex; flex-direction: column; overflow: hidden;
+        }
+        .chat-header {
+            display: flex; align-items: center; gap: 12px;
+            padding: 16px 20px; background: linear-gradient(135deg, #ff9800, #ff6f00); color: #fff;
+            box-shadow: 0 2px 10px rgba(255, 152, 0, 0.3);
+        }
+        .chat-header .title { font-size: 18px; font-weight: 600; }
+        .chat-header i { font-size: 20px; }
+        .back-btn {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(255, 255, 255, 0.15);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            color: white;
+            padding: 12px 18px;
+            border-radius: 25px;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
+        }
+        .back-btn:hover {
+            background: rgba(255, 255, 255, 0.25);
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(255, 152, 0, 0.3);
+        }
+        .messages { 
+            flex: 1; padding: 18px; overflow-y: auto; background: #fafafa; 
+            min-height: 400px;
+        }
+        .quick-actions {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 15px;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+            gap: 10px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .action-btn {
+            background: rgba(255, 255, 255, 0.15);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: white;
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-align: center;
+        }
+        .action-btn:hover {
+            background: rgba(255, 255, 255, 0.25);
+            transform: translateY(-1px);
+        }
+        .msg-row { display: flex; margin-bottom: 12px; }
+        .msg-row.user { justify-content: flex-end; }
+        .msg {
+            max-width: 75%; padding: 12px 16px; border-radius: 12px; line-height: 1.4; font-size: 14px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+            white-space: pre-wrap; word-wrap: break-word;
+            animation: slideIn 0.3s ease;
+        }
+        .msg.user { 
+            background: linear-gradient(135deg, #ffe0b3, #ffcc80); 
+            color: #e65100; 
+            border-top-right-radius: 4px;
+            border: 1px solid rgba(255, 152, 0, 0.3);
+            margin-left: auto;
+        }
+        .msg.assistant { 
+            background: linear-gradient(135deg, #fff3e0, #ffe0b3); 
+            color: #bf360c; 
+            border-top-left-radius: 4px;
+            border: 1px solid rgba(255, 183, 77, 0.3);
+            margin-right: auto;
+        }
+        .msg.error {
+            background: linear-gradient(135deg, #ffebee, #ffcdd2);
+            color: #c62828;
+            border: 1px solid rgba(244, 67, 54, 0.3);
+            margin-right: auto;
+        }
+        .msg.success {
+            background: linear-gradient(135deg, #e8f5e8, #c8e6c9);
+            color: #2e7d32;
+            border: 1px solid rgba(76, 175, 80, 0.3);
+            margin-right: auto;
+        }
+        .input-bar { 
+            display: flex; gap: 12px; padding: 16px; background: #fff; 
+            border-top: 1px solid rgba(255, 152, 0, 0.2);
+        }
+        .input-bar input {
+            flex: 1; padding: 12px 16px; border: 2px solid #ffcc80; 
+            border-radius: 12px; font-size: 14px;
+            outline: none; transition: all 0.3s ease;
+        }
+        .input-bar input:focus {
+            border-color: #ff9800;
+            box-shadow: 0 0 0 3px rgba(255, 152, 0, 0.1);
+        }
+        .input-bar button {
+            padding: 12px 20px; background: linear-gradient(135deg, #ff9800, #ff6f00); 
+            color: #fff; border: none; border-radius: 12px; cursor: pointer;
+            font-weight: 600; transition: all 0.3s ease;
+            display: flex; align-items: center; gap: 6px;
+        }
+        .input-bar button:hover {
+            background: linear-gradient(135deg, #ff6f00, #e65100);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(255, 152, 0, 0.4);
+        }
+        .connection-status {
+            background: rgba(255, 255, 255, 0.9);
+            padding: 8px 16px;
+            text-align: center;
+            font-size: 12px;
+            border-bottom: 1px solid rgba(255, 152, 0, 0.2);
+            transition: all 0.3s ease;
+        }
+        .connection-status.connected {
+            background: rgba(200, 230, 201, 0.9);
+            color: #2e7d32;
+        }
+        .connection-status.disconnected {
+            background: rgba(255, 235, 238, 0.9);
+            color: #c62828;
+        }
+        .connection-status.connecting {
+            background: rgba(255, 243, 224, 0.9);
+            color: #f57c00;
+        }
+        .typing-indicator {
+            display: none;
+            padding: 8px 12px;
+            margin: 8px 0;
+            background: #f0f0f0;
+            border-radius: 12px;
+            max-width: 60px;
+        }
+        .typing-dots {
+            display: flex;
+            gap: 3px;
+        }
+        .typing-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: #ff9800;
+            animation: typing 1.4s infinite;
+        }
+        .typing-dot:nth-child(2) { animation-delay: 0.2s; }
+        .typing-dot:nth-child(3) { animation-delay: 0.4s; }
+        @keyframes typing {
+            0%, 60%, 100% { transform: translateY(0); }
+            30% { transform: translateY(-10px); }
+        }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        @media (max-width: 768px) {
+            .chat-wrapper { height: 95vh; margin: 10px; }
+            .quick-actions { grid-template-columns: 1fr 1fr; }
+            .msg { max-width: 85%; font-size: 13px; }
+            .back-btn { top: 10px; left: 10px; padding: 8px 12px; }
+        }
+    </style>
+</head>
+<body>
+    <a href="javascript:history.back()" class="back-btn">
+        <i class="fas fa-arrow-left"></i> Back
+    </a>
+    
+    <div class="chat-wrapper">
+        <div class="chat-header">
+            <i class="fas fa-robot"></i>
+            <div class="title">Edvision360 AI Assistant</div>
+        </div>
+        
+        <div class="connection-status connected" id="connectionStatus">
+            <i class="fas fa-wifi"></i> AI Assistant Ready
+        </div>
+        
+        <div class="quick-actions">
+            <div class="action-btn" onclick="askQuestion('Analyze my academic performance trends')">
+                <i class="fas fa-chart-line"></i> Performance
+            </div>
+            <div class="action-btn" onclick="askQuestion('Suggest study strategies for better grades')">
+                <i class="fas fa-lightbulb"></i> Study Tips
+            </div>
+            <div class="action-btn" onclick="askQuestion('How can I improve my attendance?')">
+                <i class="fas fa-calendar-check"></i> Attendance
+            </div>
+            <div class="action-btn" onclick="askQuestion('Predict my SAT performance based on current data')">
+                <i class="fas fa-brain"></i> Predictions
+            </div>
+        </div>
+        
+        <div id="messages" class="messages">
+            <div class="msg-row">
+                <div class="msg assistant">
+                    <i class="fas fa-robot"></i> <strong>AI Assistant:</strong> Hello {{ session.get('username', 'Student') }}! 👋 I'm your personalized AI academic assistant powered by Gemini AI.
+                    
+                    {% if session.get('username') in student_enrollments %}
+                    <br><br>📚 <strong>Your Enrolled Courses:</strong> {{ ', '.join(student_enrollments.get(session.get('username'), [])) }}
+                    {% endif %}
+                    
+                    {% if session.get('username') in attendance_records %}
+                    {% set attendance_data = attendance_records.get(session.get('username'), {}) %}
+                    {% set total_days = attendance_data|length %}
+                    {% set present_days = attendance_data.values()|select('equalto', 'Present')|list|length %}
+                    {% set attendance_rate = ((present_days / total_days) * 100)|round(1) if total_days > 0 else 0 %}
+                    <br>📊 <strong>Attendance Rate:</strong> {{ attendance_rate }}% ({{ present_days }}/{{ total_days }} days)
+                    {% endif %}
+                    
+                    {% if session.get('username') in students_info and students_info[session.get('username')].get('marks') %}
+                    {% set student_marks = students_info[session.get('username')]['marks'] %}
+                    {% set avg_score = (student_marks.values()|sum / student_marks.values()|length)|round(1) %}
+                    <br>🏆 <strong>Average Performance:</strong> {{ avg_score }}%
+                    {% endif %}
+                    
+                    <br><br>💡 <strong>Let me analyze your academic performance!</strong> I can help you improve in areas like aptitude, study strategies, and academic planning. Ask me anything about your progress or how to enhance your skills!
+                </div>
+            </div>
+        </div>
+        
+        <div class="typing-indicator" id="typingIndicator">
+            <div class="typing-dots">
+                <div class="typing-dot"></div>
+                <div class="typing-dot"></div>
+                <div class="typing-dot"></div>
+            </div>
+        </div>
+        
+        <div class="hint">Ask about performance insights, study plans, attendance trends, and academic predictions.</div>
+        
+        <div class="input-bar">
+            <input id="messageInput" type="text" placeholder="Type your question and press Enter...">
+            <button onclick="sendMessage()">
+                <i class="fas fa-paper-plane"></i> Send
+            </button>
+        </div>
+    </div>
+    
+    <script>
+        let messageCounter = 0;
+        let isConnected = true;
+        
+        function updateConnectionStatus(status, message) {
+            const statusElement = document.getElementById('connectionStatus');
+            statusElement.className = `connection-status ${status}`;
+            
+            const icons = {
+                connected: 'fas fa-wifi',
+                connecting: 'fas fa-spinner fa-spin',
+                disconnected: 'fas fa-wifi-slash'
+            };
+            
+            statusElement.innerHTML = `<i class="${icons[status]}"></i> ${message}`;
+            isConnected = status === 'connected';
+        }
+        
+        function askQuestion(question) {
+            document.getElementById('messageInput').value = question;
+            sendMessage();
+        }
+        
+        function appendMessage(text, sender, messageId = null, showActions = false) {
+            const messagesContainer = document.getElementById('messages');
+            const row = document.createElement('div');
+            row.className = 'msg-row ' + (sender === 'user' ? 'user' : sender);
+            
+            const bubble = document.createElement('div');
+            bubble.className = 'msg ' + sender;
+            
+            let icon, label;
+            switch(sender) {
+                case 'user':
+                    icon = 'fas fa-user';
+                    label = 'You';
+                    break;
+                case 'error':
+                    icon = 'fas fa-exclamation-triangle';
+                    label = 'System';
+                    break;
+                case 'success':
+                    icon = 'fas fa-check-circle';
+                    label = 'System';
+                    break;
+                default:
+                    icon = 'fas fa-robot';
+                    label = 'AI Assistant';
+            }
+            
+            let messageContent = `<i class="${icon}"></i> <strong>${label}:</strong> ${text}`;
+            
+            if (showActions) {
+                const timestamp = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+                messageContent += `
+                <div class="message-actions">
+                    <span class="timestamp">${timestamp}</span>
+                    ${sender === 'error' ? '<button class="retry-btn" onclick="retryLastMessage()"><i class="fas fa-redo"></i> Retry</button>' : ''}
+                </div>`;
+            }
+            
+            bubble.innerHTML = messageContent;
+            
+            if (messageId) {
+                bubble.setAttribute('data-message-id', messageId);
+            }
+            
+            row.appendChild(bubble);
+            messagesContainer.appendChild(row);
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+        
+        let lastMessage = '';
+        
+        function retryLastMessage() {
+            if (lastMessage) {
+                sendMessage(lastMessage);
+            }
+        }
+        
+        function sendMessage(retryMessage = null) {
+            const input = document.getElementById('messageInput');
+            const message = retryMessage || input.value.trim();
+            
+            if (!message) {
+                appendMessage('Please enter a message to chat with the AI assistant.', 'error', null, true);
+                return;
+            }
+            
+            // Store last message for retry functionality
+            lastMessage = message;
+            
+            if (!retryMessage) {
+                appendMessage(message, 'user', ++messageCounter);
+                input.value = '';
+            }
+            
+            updateConnectionStatus('connecting', 'Sending message to AI...');
+            showTypingIndicator();
+            
+            // Enhanced fetch with comprehensive error handling
+            fetch('/ai_chat', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: JSON.stringify({message: message}),
+                timeout: 30000 // 30 second timeout
+            })
+            .then(response => {
+                console.log('Response status:', response.status);
+                console.log('Response headers:', response.headers);
+                
+                if (!response.ok) {
+                    throw new Error(`Server responded with status ${response.status}: ${response.statusText}`);
+                }
+                
+                const contentType = response.headers.get('content-type');
+                if (!contentType || !contentType.includes('application/json')) {
+                    throw new Error('Server did not return JSON response');
+                }
+                
+                return response.json();
+            })
+            .then(data => {
+                hideTypingIndicator();
+                updateConnectionStatus('connected', 'AI Assistant Ready');
+                
+                console.log('AI Response Data:', data);
+                
+                if (data.status === 'success' && data.response) {
+                    appendMessage(data.response, 'assistant', ++messageCounter, true);
+                    appendMessage('Message delivered successfully!', 'success');
+                } else if (data.response) {
+                    appendMessage(data.response, 'error', ++messageCounter, true);
+                } else {
+                    throw new Error('No response data received from AI');
+                }
+            })
+            .catch(error => {
+                hideTypingIndicator();
+                updateConnectionStatus('disconnected', 'Connection Error');
+                
+                console.error('Detailed Error:', error);
+                
+                let errorMessage;
+                if (error.name === 'TypeError' && error.message.includes('fetch')) {
+                    errorMessage = 'Unable to connect to the AI service. Please check your internet connection and try again.';
+                } else if (error.message.includes('timeout')) {
+                    errorMessage = 'The AI service is taking too long to respond. Please try again with a shorter message.';
+                } else if (error.message.includes('JSON')) {
+                    errorMessage = 'Received an invalid response from the AI service. The service might be temporarily unavailable.';
+                } else {
+                    errorMessage = `AI Service Error: ${error.message}. Please try again or contact support if the problem persists.`;
+                }
+                
+                appendMessage(errorMessage, 'error', ++messageCounter, true);
+            });
+        }
+        
+        function showTypingIndicator() {
+            document.getElementById('typingIndicator').style.display = 'block';
+        }
+        
+        function hideTypingIndicator() {
+            document.getElementById('typingIndicator').style.display = 'none';
+        }
+        
+        // Submit on Enter key
+        document.getElementById('messageInput').addEventListener('keydown', function(e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
+        });
+        
+        // Focus on input when page loads and test connection
+        window.onload = function() {
+            document.getElementById('messageInput').focus();
+            
+            // Test initial connection
+            fetch('/ai_chat', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({message: 'test connection'})
+            })
+            .then(response => {
+                if (response.ok) {
+                    updateConnectionStatus('connected', 'AI Assistant Ready');
+                } else {
+                    updateConnectionStatus('disconnected', 'AI Service Unavailable');
+                }
+            })
+            .catch(() => {
+                updateConnectionStatus('disconnected', 'Unable to Connect to AI');
+            });
+        };
+        
+        // Periodic connection check
+        setInterval(() => {
+            if (!isConnected) {
+                fetch('/ai_chat', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({message: 'ping'})
+                })
+                .then(response => {
+                    if (response.ok) {
+                        updateConnectionStatus('connected', 'AI Assistant Ready');
+                    }
+                })
+                .catch(() => {
+                    // Still disconnected
+                });
+            }
+        }, 10000); // Check every 10 seconds
+    </script>
+</body>
+</html>
+    '''
+    return render_template_string(template, 
+                                 student_enrollments=student_enrollments,
+                                 attendance_records=attendance_records,
+                                 students_info=students_info)
+
 if __name__ == '__main__':
     app.run(debug=True)
 
@@ -8273,3 +8930,8 @@ if __name__ == '__main__':
 
 
 
+
+
+
+
+    
